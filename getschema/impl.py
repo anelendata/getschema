@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, datetime, dateutil, os, re, sys
+import argparse, csv, datetime, dateutil, os, re, sys
 from dateutil.tz import tzoffset
 import simplejson as json
 
@@ -27,6 +27,9 @@ def _do_infer_schema(obj, record_level=None, lower=False,
     if record_level:
         for x in record_level.split(","):
             obj = obj[x]
+
+    if obj is None:
+        return None
 
     if type(obj) is dict and obj.keys():
         schema["type"] = ["null", "object"]
@@ -87,12 +90,18 @@ def _compare_props(prop1, prop2):
     f1 = prop1.get("format")
     f2 = prop2.get("format")
     if t1[1] == "object":
-        assert(t1[1] == t2[1])
+        if t1[1] != t2[1]:
+            raise ValueError(
+                "While traversing object %s, two records differ in types: %s %s" %
+                (prop, t1[1], t2[1]))
         for key in prop["properties"]:
             prop["properties"][key] = _compare_props(
                 prop1["properties"].get(key), prop2["properties"].get(key))
     if t1[1] == "array":
-        assert(t1[1] == t2[1])
+        if t1[1] != t2[1]:
+            raise ValueError(
+                "While traversing array %s, two records differ in types: %s %s" %
+                       (prop, t1[1], t2[1]))
         prop["items"] = _compare_props(prop1["items"], prop2["items"])
 
     numbers = ["integer", "number"]
@@ -120,7 +129,10 @@ def _infer_from_two(schema1, schema2):
     for key in schema1["properties"]:
         prop1 = schema1["properties"][key]
         prop2 = schema2["properties"].get(key, prop1)
-        schema["properties"][key] = _compare_props(prop1, prop2)
+        try:
+            schema["properties"][key] = _compare_props(prop1, prop2)
+        except Exception as e:
+            raise Exception("Key: %s\n%s" % (key, e))
     return schema
 
 
@@ -173,25 +185,26 @@ def infer_schema(obj, record_level=None,
         # Compare between currently the most conservative and the new record
         # and keep the more conservative.
         schema = _infer_from_two(schema, cur_schema)
+
     schema["type"] = "object"
     return schema
 
 
-def infer_from_json_file(
-    filename, skip=0, lower=False, replace_special=False, snake_case=False):
+def infer_from_json_file(filename, skip=0, lower=False, replace_special=False,
+                         snake_case=False):
     with open(filename, "r") as f:
         content = f.read()
     data = json.loads(content)
     if type(data) is list:
-       data = data[skip:]
+        data = data[skip:]
     schema = infer_schema(data, lower=lower, replace_special=replace_special,
                           snake_case=snake_case)
 
     return schema
 
 
-def infer_from_csv_file(
-    filename, skip=0, lower=False, replace_special=False, snake_case=False):
+def infer_from_csv_file(filename, skip=0, lower=False, replace_special=False,
+                        snake_case=False):
     with open(filename) as f:
         count = 0
         while count < skip:
@@ -282,8 +295,8 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
                         obj, default_tz_offset=0).isoformat()
                 except Exception as e:
                     cleaned = _on_invalid_property(on_invalid_property,
-                                                    dict_path, obj_type, obj,
-                                                    err_msg=str(e))
+                                                   dict_path, obj_type, obj,
+                                                   err_msg=str(e))
         elif obj_type == "number":
             try:
                 cleaned = float(obj)
