@@ -265,7 +265,7 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
 
     # Recurse if object or array types
     if obj_type == "object":
-        if not (type(obj) is dict and obj.keys()):
+        if type(obj) is not dict:
             raise KeyError("property type (object) Expected a dict object." +
                            "Got: %s %s" % (type(obj), str(obj)))
         cleaned = dict()
