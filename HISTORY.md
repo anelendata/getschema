@@ -1,5 +1,10 @@
 ## History
 
+### 0.2.0 (2021-05-02)
+
+- feature: jsonpath support for the record_level parameter in getschema.infer_schema function.
+- feature: YAML file support
+
 ### 0.1.2 (2020-12-22)
 
 - fix: allow empty dict (Issue #1)

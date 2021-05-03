@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--indent", "-i", default=2, type=int,
                         help="Number of spaces for indentation")
     parser.add_argument("--type", "-t", default="json", type=str,
-                        help="Record format (json, csv)")
+                        help="Record format (json, yaml, csv)")
     parser.add_argument("--skip", "-s", default=0, type=int,
                         help="Skip first n records. Don't skip the header row.")
     parser.add_argument("--lower", "-l", default=False, action="store_true",

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import argparse, csv, datetime, dateutil, os, re, sys
 from dateutil.tz import tzoffset
+import jsonpath_ng as jsonpath
 import simplejson as json
+import yaml
 
 # JSON schema follows:
 # https://json-schema.org/
@@ -19,14 +21,19 @@ def _convert_key(old_key, lower=False, replace_special=False, snake_case=False):
     return new_key
 
 
+def _get_jsonpath(raw, path):
+    jsonpath_expr = jsonpath.parse(path)
+    record = [match.value for match in jsonpath_expr.find(raw)]
+    return record
+
+
 def _do_infer_schema(obj, record_level=None, lower=False,
                      replace_special=False, snake_case=False):
     schema = dict()
 
     # Go down to the record level if specified
     if record_level:
-        for x in record_level.split(","):
-            obj = obj[x]
+        obj = _get_jsonpath(obj, record_level)[0]
 
     if obj is None:
         return None
@@ -203,6 +210,19 @@ def infer_from_json_file(filename, skip=0, lower=False, replace_special=False,
     return schema
 
 
+def infer_from_yaml_file(filename, skip=0, lower=False, replace_special=False,
+                         snake_case=False):
+    with open(filename, "r") as f:
+        content = f.read()
+    data = yaml.load(content, Loader=yaml.FullLoader)
+    if type(data) is list:
+        data = data[skip:]
+    schema = infer_schema(data, lower=lower, replace_special=replace_special,
+                          snake_case=snake_case)
+
+    return schema
+
+
 def infer_from_csv_file(filename, skip=0, lower=False, replace_special=False,
                         snake_case=False):
     with open(filename) as f:
@@ -222,6 +242,9 @@ def infer_from_file(filename, fmt="json", skip=0, lower=False,
                     replace_special=False, snake_case=False):
     if fmt == "json":
         schema = infer_from_json_file(
+            filename, skip, lower, replace_special, snake_case)
+    if fmt == "yaml":
+        schema = infer_from_yaml_file(
             filename, skip, lower, replace_special, snake_case)
     elif fmt == "csv":
         schema = infer_from_csv_file(filename, skip, lower, replace_special, snake_case)
