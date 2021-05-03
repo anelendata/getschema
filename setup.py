@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from setuptools import setup
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -13,7 +13,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Daigo Tanaka, Anelen Co., LLC",
-    url="https://github.com/daigotanaka/getschema",
+    url="https://github.com/anelendata/getschema",
 
     classifiers=[
         "Development Status :: 4 - Beta",

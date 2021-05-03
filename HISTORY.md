@@ -1,5 +1,9 @@
 ## History
 
+### 0.2.1 (2021-05-02)
+
+- fix: Homepage link on pypi
+
 ### 0.2.0 (2021-05-02)
 
 - feature: jsonpath support for the record_level parameter in getschema.infer_schema function.
