@@ -35,8 +35,12 @@ def _do_infer_schema(obj, record_level=None, lower=False,
     if record_level:
         obj = _get_jsonpath(obj, record_level)[0]
 
+    default_type = {
+        "type": ["null"]
+    }
+
     if obj is None:
-        return None
+        return default_type
 
     if type(obj) is dict and obj.keys():
         schema["type"] = ["null", "object"]
@@ -49,11 +53,9 @@ def _do_infer_schema(obj, record_level=None, lower=False,
             if ret:
                 schema["properties"][new_key] = ret
 
-            if ret:
-                schema["properties"][key] = ret
     elif type(obj) is list:
         if not obj:
-            return None
+            return default_type
         # TODO: Check more than the first record
         ret = _do_infer_schema(
             obj[0], lower=lower, replace_special=replace_special,
@@ -87,9 +89,9 @@ def _do_infer_schema(obj, record_level=None, lower=False,
 
 
 def _compare_props(prop1, prop2):
-    if not prop2:
+    if not prop2 or prop2.get("type") == ["null"]:
         return prop1
-    elif not prop1:
+    elif not prop1 or prop1.get("type") == ["null"]:
         return prop2
     prop = prop2
     t1 = prop1["type"]
