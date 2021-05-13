@@ -1,5 +1,10 @@
 ## History
 
+### 0.2.2 (2021-05-12)
+
+- fix: Fix JSON file recoginition (#4)
+- fix: Don't ignore the field when all records have a field with null value (#3)
+
 ### 0.2.1 (2021-05-02)
 
 - fix: Homepage link on pypi
