@@ -243,7 +243,7 @@ def infer_from_file(filename, fmt="json", skip=0, lower=False,
     if fmt == "json":
         schema = infer_from_json_file(
             filename, skip, lower, replace_special, snake_case)
-    if fmt == "yaml":
+    elif fmt == "yaml":
         schema = infer_from_yaml_file(
             filename, skip, lower, replace_special, snake_case)
     elif fmt == "csv":
