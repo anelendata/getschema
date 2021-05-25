@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, csv, datetime, dateutil, os, re, sys
+import argparse, csv, datetime, dateutil, logging, os, re, sys
 from dateutil.tz import tzoffset
 import jsonpath_ng as jsonpath
 import simplejson as json
@@ -8,6 +8,9 @@ import yaml
 # JSON schema follows:
 # https://json-schema.org/
 COMMAND = "json2schema"
+
+LOGGER = logging.getLogger(__name__)
+DEFAULT_TYPE = ["null", "string"]
 
 
 def _convert_key(old_key, lower=False, replace_special=False, snake_case=False):
@@ -35,14 +38,9 @@ def _do_infer_schema(obj, record_level=None, lower=False,
     if record_level:
         obj = _get_jsonpath(obj, record_level)[0]
 
-    default_type = {
-        "type": ["null"]
-    }
-
     if obj is None:
-        return default_type
-
-    if type(obj) is dict and obj.keys():
+        schema["type"] = ["null"]
+    elif type(obj) is dict and obj.keys():
         schema["type"] = ["null", "object"]
         schema["properties"] = dict()
         for key in obj.keys():
@@ -54,19 +52,19 @@ def _do_infer_schema(obj, record_level=None, lower=False,
                 schema["properties"][new_key] = ret
 
     elif type(obj) is list:
+        schema["type"] = ["null", "array"]
         if not obj:
-            return default_type
+            schema["items"] = None
         # TODO: Check more than the first record
-        ret = _do_infer_schema(
-            obj[0], lower=lower, replace_special=replace_special,
-            snake_case=snake_case)
-        if ret:
-            schema["type"] = ["null", "array"]
+        else:
+            ret = _do_infer_schema(
+                obj[0], lower=lower, replace_special=replace_special,
+                snake_case=snake_case)
             schema["items"] = ret
     else:
         try:
             float(obj)
-        except:
+        except ValueError:
             schema["type"] = ["null", "string"]
             # TODO: This is a very loose regex for date-time.
             if (type(obj) is datetime.datetime or
@@ -145,6 +143,28 @@ def _infer_from_two(schema1, schema2):
     return schema
 
 
+def _replace_null_type(schema, path=""):
+    new_schema = {}
+    new_schema.update(schema)
+    if schema["type"] in ("object", ["object"], ["null", "object"]):
+        new_schema ["properties"] = {}
+        for key in schema.get("properties", {}).keys():
+            new_path = path + "." + key
+            new_schema["properties"][key] = _replace_null_type(schema["properties"][key], new_path)
+    elif schema["type"] == ["null", "array"]:
+        if not schema.get("items"):
+            new_schema["items"] = {}
+        if new_schema["items"].get("type") in (None, "null", ["null"]):
+            LOGGER.warning(
+                f"{path} is an array without non-null values."
+                f"Replacing with the default {DEFAULT_TYPE}")
+            new_schema["items"]["type"] = DEFAULT_TYPE
+    elif schema["type"] == ["null"]:
+        LOGGER.warning(f"{path} contained non-null values only. Replacing with the default {DEFAULT_TYPE}")
+        new_schema["type"] = DEFAULT_TYPE
+    return new_schema
+
+
 def _nested_get(input_dict, nested_key):
     internal_dict_value = input_dict
     for k in nested_key:
@@ -187,7 +207,7 @@ def infer_schema(obj, record_level=None,
     if type(obj[0]) is not dict:
         raise ValueError("Input must be a dict object.")
     schema = None
-    # Go through the entire list of objects and find the most safe type assumption
+    # Go through the list of objects and find the most safe type assumption
     for o in obj:
         cur_schema = _do_infer_schema(
             o, record_level, lower, replace_special, snake_case)
@@ -196,6 +216,9 @@ def infer_schema(obj, record_level=None,
         schema = _infer_from_two(schema, cur_schema)
 
     schema["type"] = "object"
+
+    schema = _replace_null_type(schema)
+
     return schema
 
 
@@ -249,7 +272,8 @@ def infer_from_file(filename, fmt="json", skip=0, lower=False,
         schema = infer_from_yaml_file(
             filename, skip, lower, replace_special, snake_case)
     elif fmt == "csv":
-        schema = infer_from_csv_file(filename, skip, lower, replace_special, snake_case)
+        schema = infer_from_csv_file(
+            filename, skip, lower, replace_special, snake_case)
     else:
         raise KeyError("Unsupported format : " + fmt)
     return schema
@@ -267,8 +291,9 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
       - force: Keep it as is (string)
     """
     invalid_actions = ["raise", "null", "force"]
-    if not on_invalid_property in invalid_actions:
-        raise ValueError("on_invalid_property is not one of %s" % invalid_actions)
+    if on_invalid_property not in invalid_actions:
+        raise ValueError(
+            "on_invalid_property is not one of %s" % invalid_actions)
 
     obj_type = _nested_get(schema, dict_path + ["type"])
     obj_format = _nested_get(schema, dict_path + ["format"])
