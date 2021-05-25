@@ -1,5 +1,9 @@
 ## History
 
+### 0.2.3 (2021-05-25)
+
+- fix: Default type to be string instead of null when no non-null values are found (#7)
+
 ### 0.2.2 (2021-05-12)
 
 - fix: Fix JSON file recoginition (#4)
