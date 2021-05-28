@@ -334,7 +334,7 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
         for o in obj:
             ret = fix_type(o, schema, dict_path + ["items"],
                            on_invalid_property)
-            if ret:
+            if ret is not None:
                 cleaned.append(ret)
     else:
         if obj_type == "string":
