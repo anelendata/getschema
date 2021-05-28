@@ -1,5 +1,10 @@
 ## History
 
+### 0.2.4 (2021-05-28)
+
+- fix: Condition ignores keys with a value of 0 #9
+- fix: Incorrect handling of nullable #11
+
 ### 0.2.3 (2021-05-25)
 
 - fix: Default type to be string instead of null when no non-null values are found (#7)
