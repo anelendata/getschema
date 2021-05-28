@@ -323,7 +323,7 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
         for key in keys:
             ret = fix_type(obj[key], schema, dict_path + ["properties", key],
                            on_invalid_property)
-            if ret:
+            if ret is not None:
                 cleaned[key] = ret
             new_key = _convert_key(key, lower, replace_special, snake_case)
             if key != new_key:
@@ -334,7 +334,7 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
         for o in obj:
             ret = fix_type(o, schema, dict_path + ["items"],
                            on_invalid_property)
-            if ret:
+            if ret is not None:
                 cleaned.append(ret)
     else:
         if obj_type == "string":
