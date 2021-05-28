@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/daigotanaka/getschema.svg?branch=master)](https://travis-ci.com/daigotanaka/getschema)
+[![Build Status](https://travis-ci.com/anelendata/getschema.svg?branch=master)](https://travis-ci.com/anelendata/getschema)
 
 💥 New: jsonpath support for the record_level parameter in getschema.infer_schema function.
 

@@ -304,8 +304,10 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
             raise ValueError("Unknown property found at: %s" % dict_path)
         return None
     if type(obj_type) is list:
-        nullable = (obj_type == "null")
-        obj_type = obj_type[1]
+        if len(obj_type) > 2:
+            raise Exception("Sorry, getschema does not support multiple types")
+        nullable = ("null" in obj_type)
+        obj_type = obj_type[1] if obj_type[0] == "null" else obj_type[0]
 
     if obj is None:
         if not nullable:
@@ -348,21 +350,29 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
                                                    dict_path, obj_type, obj,
                                                    err_msg=str(e))
         elif obj_type == "number":
-            try:
-                cleaned = float(obj)
-            except ValueError as e:
-                cleaned = _on_invalid_property(
-                    on_invalid_property, dict_path, obj_type, obj,
-                    err_msg=str(e))
+            if obj is None:
+                cleaned = 0.0
+            else:
+                try:
+                    cleaned = float(obj)
+                except ValueError as e:
+                    cleaned = _on_invalid_property(
+                        on_invalid_property, dict_path, obj_type, obj,
+                        err_msg=str(e))
         elif obj_type == "integer":
-            try:
-                cleaned = int(obj)
-            except ValueError as e:
-                cleaned = _on_invalid_property(
-                    on_invalid_property, dict_path, obj_type, obj,
-                    err_msg=str(e))
+            if obj is None:
+                cleaned = 0
+            else:
+                try:
+                    cleaned = int(obj)
+                except ValueError as e:
+                    cleaned = _on_invalid_property(
+                        on_invalid_property, dict_path, obj_type, obj,
+                        err_msg=str(e))
         elif obj_type == "boolean":
-            if str(obj).lower() == "true":
+            if obj is None:
+                cleaned = False
+            elif str(obj).lower() == "true":
                 cleaned = True
             elif str(obj).lower() == "false":
                 cleaned = False
