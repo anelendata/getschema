@@ -1,5 +1,10 @@
 ## History
 
+### 0.2.5 (2021-06-04)
+
+- fix: prevent auto-converting 0, 0.0, '', etc to null
+- fix: datetime check during fix_record()
+
 ### 0.2.4 (2021-05-28)
 
 - fix: Condition ignores keys with a value of 0 #9
