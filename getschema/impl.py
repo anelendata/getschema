@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import argparse, csv, datetime, dateutil, logging, os, re, sys
+import argparse, csv, datetime, logging, os, re, sys
+from dateutil import parser as dateutil_parser
 from dateutil.tz import tzoffset
 import jsonpath_ng as jsonpath
 import simplejson as json
@@ -28,6 +29,17 @@ def _get_jsonpath(raw, path):
     jsonpath_expr = jsonpath.parse(path)
     record = [match.value for match in jsonpath_expr.find(raw)]
     return record
+
+
+def _is_datetime(obj):
+    # TODO: This is a very loose regex for date-time.
+    return (
+        type(obj) is datetime.datetime or
+        type(obj) is datetime.date or
+        (type(obj) is str and
+         re.match("(19|20)\d\d-(0[1-9]|1[012])-([1-9]|0[1-9]|[12][0-9]|3[01])",
+                  obj) is not None)
+    )
 
 
 def _do_infer_schema(obj, record_level=None, lower=False,
@@ -66,12 +78,7 @@ def _do_infer_schema(obj, record_level=None, lower=False,
             float(obj)
         except ValueError:
             schema["type"] = ["null", "string"]
-            # TODO: This is a very loose regex for date-time.
-            if (type(obj) is datetime.datetime or
-                    type(obj) is datetime.date or
-                    (type(obj) is str and
-                     re.match("(19|20)\d\d-(0[1-9]|1[012])-([1-9]|0[1-9]|[12][0-9]|3[01])",
-                              obj) is not None)):
+            if _is_datetime(obj):
                 schema["format"] = "date-time"
         else:
             if type(obj) == bool:
@@ -175,7 +182,7 @@ def _nested_get(input_dict, nested_key):
 
 
 def _parse_datetime_tz(datetime_str, default_tz_offset=0):
-    d = dateutil.parser.parse(datetime_str)
+    d = dateutil_parser.parse(datetime_str)
     if not d.tzinfo:
         d = d.replace(tzinfo=tzoffset(None, default_tz_offset))
     return d
@@ -325,8 +332,7 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
         for key in keys:
             ret = fix_type(obj[key], schema, dict_path + ["properties", key],
                            on_invalid_property)
-            if ret is not None:
-                cleaned[key] = ret
+            cleaned[key] = ret
             new_key = _convert_key(key, lower, replace_special, snake_case)
             if key != new_key:
                 cleaned[new_key] = cleaned.pop(key)
@@ -340,18 +346,22 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
                 cleaned.append(ret)
     else:
         if obj_type == "string":
-            cleaned = str(obj)
-            if obj_format == "date-time":
-                try:
-                    cleaned = _parse_datetime_tz(
-                        obj, default_tz_offset=0).isoformat()
-                except Exception as e:
-                    cleaned = _on_invalid_property(on_invalid_property,
-                                                   dict_path, obj_type, obj,
-                                                   err_msg=str(e))
+            if obj is None:
+                cleaned = None
+            else:
+                cleaned = str(obj)
+                if obj_format == "date-time":
+                    # Just test parsing for now. Not converting to Python's
+                    # datetime as re-JSONifying datetime is not straight-foward
+                    if not _is_datetime(cleaned):
+                        cleaned = _on_invalid_property(
+                            on_invalid_property,
+                            dict_path, obj_type, cleaned,
+                            err_msg="Not in a valid datetime format",
+                        )
         elif obj_type == "number":
             if obj is None:
-                cleaned = 0.0
+                cleaned = None
             else:
                 try:
                     cleaned = float(obj)
@@ -361,7 +371,7 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
                         err_msg=str(e))
         elif obj_type == "integer":
             if obj is None:
-                cleaned = 0
+                cleaned = None
             else:
                 try:
                     cleaned = int(obj)
@@ -371,7 +381,7 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
                         err_msg=str(e))
         elif obj_type == "boolean":
             if obj is None:
-                cleaned = False
+                cleaned = None
             elif str(obj).lower() == "true":
                 cleaned = True
             elif str(obj).lower() == "false":

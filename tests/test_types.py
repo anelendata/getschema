@@ -12,6 +12,7 @@ def test_null_records():
             ],
             "nested_field": {
                 "some_date": "2021-05-25",
+                "number": 1,
                 "null_subfield": None,
             },
         },
@@ -26,6 +27,8 @@ def test_null_records():
             ],
             "nested_field": {
                 "some_date": "2021-05-25",
+                "integer": 1,
+                "number": 1.5,
                 "null_subfield": None,
             },
         },
@@ -35,5 +38,7 @@ def test_null_records():
     assert(schema["properties"]["null_field"]["type"] == ["null", "string"])
     assert(schema["properties"]["nested_field"]["properties"]["some_date"]["type"] == ["null", "string"])
     assert(schema["properties"]["nested_field"]["properties"]["some_date"]["format"] == "date-time")
+    assert(schema["properties"]["nested_field"]["properties"]["integer"]["type"] == ["null", "integer"])
+    assert(schema["properties"]["nested_field"]["properties"]["number"]["type"] == ["null", "number"])
     assert(schema["properties"]["nested_field"]["properties"]["null_subfield"]["type"] == ["null", "string"])
 
