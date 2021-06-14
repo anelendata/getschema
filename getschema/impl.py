@@ -76,7 +76,7 @@ def _do_infer_schema(obj, record_level=None, lower=False,
     else:
         try:
             float(obj)
-        except ValueError:
+        except (ValueError, TypeError):
             schema["type"] = ["null", "string"]
             if _is_datetime(obj):
                 schema["format"] = "date-time"

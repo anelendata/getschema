@@ -1,4 +1,7 @@
 install_test
+Pipfile
+Pipfile.lock
+pyproject.toml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
