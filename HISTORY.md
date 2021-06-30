@@ -1,5 +1,9 @@
 ## History
 
+### 0.2.6 (2021-06-29)
+
+- fix: a bug in schema inference where a TypeError is thrown when only a ValueError is currently expected
+
 ### 0.2.5 (2021-06-04)
 
 - fix: prevent auto-converting 0, 0.0, '', etc to null
