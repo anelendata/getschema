@@ -65,19 +65,19 @@ invalid_after_fix = {
         "some_prop": "1",
     },
 }
+
 null_entries = {
     "index": None,
     "array": [
         "1.5",
         None,
     ],
-    "nested_field": {
-        "some_prop": "3",
-    },
+    "nested_field": None,
     "boolean_field": None,
     "number_field": None,
     "string_field": None,
 }
+
 invalid_datetime_record = {
     "index": 2,
     "array": [
@@ -230,6 +230,20 @@ def test_reject_null_string():
     _ = getschema.fix_type(null_entries, schema)
 
     schema["properties"]["string_field"]["type"] = ["string"]
+    try:
+        _ = getschema.fix_type(null_entries, schema)
+    except Exception as e:
+        assert(str(e).startswith("Null object given at"))
+    else:
+        raise Exception("Supposed to fail with null value")
+
+
+def test_reject_null_object():
+    schema = getschema.infer_schema(records)
+    # This will pass
+    _ = getschema.fix_type(null_entries, schema)
+
+    schema["properties"]["nested_field"]["type"] = ["object"]
     try:
         _ = getschema.fix_type(null_entries, schema)
     except Exception as e:

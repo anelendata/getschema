@@ -320,13 +320,13 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
         if not nullable:
             if on_invalid_property == "raise":
                 raise ValueError("Null object given at %s" % dict_path)
-            return None
+        return None
 
     # Recurse if object or array types
     if obj_type == "object":
         if type(obj) is not dict:
             raise KeyError("property type (object) Expected a dict object." +
-                           "Got: %s %s" % (type(obj), str(obj)))
+                           "Got: %s %s at %s" % (type(obj), str(obj), str(dict_path)))
         cleaned = dict()
         keys = obj.keys()
         for key in keys:
