@@ -1,5 +1,8 @@
 ## History
 
+### 0.2.7 (2021-07-11)
+- fix: getschema.fix_type function: A valid null object is rejected
+
 ### 0.2.6 (2021-06-29)
 
 - fix: a bug in schema inference where a TypeError is thrown when only a ValueError is currently expected
