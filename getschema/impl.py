@@ -286,8 +286,16 @@ def infer_from_file(filename, fmt="json", skip=0, lower=False,
     return schema
 
 
-def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
-             lower=False, replace_special=False, snake_case=False):
+def fix_type(
+        obj,
+        schema,
+        dict_path=[],
+        on_invalid_property="raise",
+        lower=False,
+        replace_special=False,
+        snake_case=False,
+        date_to_datetime=False,
+    ):
     """Convert the fields into the proper object types.
     e.g. {"number": "1.0"} -> {"number": 1.0}
 
@@ -297,6 +305,13 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
       - null: Impute with null
       - force: Keep it as is (string)
     """
+    kwargs = {
+        "on_invalid_property": on_invalid_property,
+        "lower": lower,
+        "replace_special": replace_special,
+        "snake_case": snake_case,
+        "date_to_datetime": date_to_datetime,
+    }
     invalid_actions = ["raise", "null", "force"]
     if on_invalid_property not in invalid_actions:
         raise ValueError(
@@ -331,7 +346,7 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
         keys = obj.keys()
         for key in keys:
             ret = fix_type(obj[key], schema, dict_path + ["properties", key],
-                           on_invalid_property)
+                           **kwargs)
             cleaned[key] = ret
             new_key = _convert_key(key, lower, replace_special, snake_case)
             if key != new_key:
@@ -341,7 +356,7 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
         cleaned = list()
         for o in obj:
             ret = fix_type(o, schema, dict_path + ["items"],
-                           on_invalid_property)
+                           **kwargs)
             if ret is not None:
                 cleaned.append(ret)
     else:
@@ -359,6 +374,9 @@ def fix_type(obj, schema, dict_path=[], on_invalid_property="raise",
                             dict_path, obj_type, cleaned,
                             err_msg="Not in a valid datetime format",
                         )
+                    elif date_to_datetime and len(cleaned) == 10:  # "2023-10-19"
+                        cleaned += " 00:00:00.000"
+
         elif obj_type == "number":
             if obj is None:
                 cleaned = None
