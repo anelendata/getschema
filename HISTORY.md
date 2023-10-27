@@ -1,5 +1,8 @@
 ## History
 
+### 0.2.8 (2021-10-26)
+- new: fix_type function: Option to convert date to datetime
+
 ### 0.2.7 (2021-07-11)
 - fix: getschema.fix_type function: A valid null object is rejected
 
