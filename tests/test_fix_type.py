@@ -292,3 +292,12 @@ def test_undefined_sub_property():
         assert(str(e).startswith("Unknown property found at: ['properties', 'nested_field', 'properties', 'foo']"))
     else:
         raise Exception(f"Supposed to fail with null value.")
+
+
+    cleaned = getschema.fix_type(
+            records[1],
+            schema,
+            on_invalid_property="raise",
+            drop_unknown_properties=True,
+            )
+    assert(cleaned["nested_field"].get("foo") == None)

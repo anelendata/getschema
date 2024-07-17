@@ -288,11 +288,16 @@ def infer_from_file(filename, fmt="json", skip=0, lower=False,
     return schema
 
 
+class DroppedProperty(object):
+    pass
+
+
 def fix_type(
         obj,
         schema,
         dict_path=[],
         on_invalid_property="raise",
+        drop_unknown_properties=False,
         lower=False,
         replace_special=False,
         snake_case=False,
@@ -306,9 +311,12 @@ def fix_type(
       - raise: Raise exception
       - null: Impute with null
       - force: Keep it as is (string)
+    - drop_unknown_properties: True/False
+      If true, the returned object will exclude unknown (sub-)properties
     """
     kwargs = {
         "on_invalid_property": on_invalid_property,
+        "drop_unknown_properties": drop_unknown_properties,
         "lower": lower,
         "replace_special": replace_special,
         "snake_case": snake_case,
@@ -347,6 +355,8 @@ def fix_type(
         cleaned = dict()
         keys = obj.keys()
         for key in keys:
+            if drop_unknown_properties and not _nested_get(schema, dict_path + ["properties", key] + ["type"]):
+                continue
             try:
                 ret = fix_type(obj[key], schema, dict_path + ["properties", key],
                                **kwargs)
