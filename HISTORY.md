@@ -1,5 +1,8 @@
 ## History
 
+### 0.2.9 (2024-07-16)
+- new: fix_type function: Option to drop unknown properties
+
 ### 0.2.8 (2021-10-26)
 - new: fix_type function: Option to convert date to datetime
 
