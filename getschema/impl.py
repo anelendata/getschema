@@ -226,6 +226,8 @@ def infer_schema(obj, record_level=None,
 
     schema = _replace_null_type(schema)
 
+    LOGGER.info(f"Inference completed from {len(obj)} records")
+
     return schema
 
 
@@ -345,8 +347,12 @@ def fix_type(
         cleaned = dict()
         keys = obj.keys()
         for key in keys:
-            ret = fix_type(obj[key], schema, dict_path + ["properties", key],
-                           **kwargs)
+            try:
+                ret = fix_type(obj[key], schema, dict_path + ["properties", key],
+                               **kwargs)
+            except Exception as e:
+                raise Exception(f"{str(e)} at {dict_path}")
+
             cleaned[key] = ret
             new_key = _convert_key(key, lower, replace_special, snake_case)
             if key != new_key:
@@ -355,8 +361,12 @@ def fix_type(
         assert(type(obj) is list)
         cleaned = list()
         for o in obj:
-            ret = fix_type(o, schema, dict_path + ["items"],
-                           **kwargs)
+            try:
+                ret = fix_type(o, schema, dict_path + ["items"],
+                               **kwargs)
+            except Exception as e:
+                raise Exception(f"{str(e)} at {dict_path}")
+
             if ret is not None:
                 cleaned.append(ret)
     else:

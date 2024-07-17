@@ -249,4 +249,46 @@ def test_reject_null_object():
     except Exception as e:
         assert(str(e).startswith("Null object given at"))
     else:
-        raise Exception("Supposed to fail with null value")
+        raise Exception(f"Supposed to fail with null value.")
+
+
+def test_undefined_sub_property():
+    schema = getschema.infer_schema(records)
+    # This will pass
+    _ = getschema.fix_type(
+            records[0],
+            schema,
+            on_invalid_property="raise",
+        )
+
+    # Adding an invalid record
+    records[0]["foo"] = "baa"
+    try:
+        _ = getschema.fix_type(
+                records[0],
+                schema,
+                on_invalid_property="raise",
+                )
+    except Exception as e:
+        assert(str(e).startswith("Unknown property found at: ['properties', 'foo']"))
+    else:
+        raise Exception(f"Supposed to fail with null value.")
+
+    # This will pass
+    _ = getschema.fix_type(
+            records[1],
+            schema,
+            on_invalid_property="raise",
+        )
+    # Adding an invalid sub property
+    records[1]["nested_field"]["foo"] = "baa"
+    try:
+        _ = getschema.fix_type(
+                records[1],
+                schema,
+                on_invalid_property="raise",
+                )
+    except Exception as e:
+        assert(str(e).startswith("Unknown property found at: ['properties', 'nested_field', 'properties', 'foo']"))
+    else:
+        raise Exception(f"Supposed to fail with null value.")
