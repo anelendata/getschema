@@ -50,9 +50,8 @@ def _do_infer_schema(obj, record_level=None, lower=False,
     if record_level:
         obj = _get_jsonpath(obj, record_level)[0]
 
-    if obj is None:
-        schema["type"] = ["null"]
-    elif type(obj) is dict and obj.keys():
+    schema["type"] = DEFAULT_TYPE
+    if type(obj) is dict and obj.keys():
         schema["type"] = ["null", "object"]
         schema["properties"] = dict()
         for key in obj.keys():
@@ -89,7 +88,7 @@ def _do_infer_schema(obj, record_level=None, lower=False,
             elif type(obj) == int or (type(obj) == str and obj[0] != "0"):
                 schema["type"] = ["null", "integer"]
             else:
-                schema["type"] = ["null", "string"]
+                schema["type"] = DEFAULT_TYPE
     return schema
 
 
