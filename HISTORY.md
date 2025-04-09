@@ -1,5 +1,8 @@
 ## History
 
+### 0.2.10 (2025-04-08)
+- new: default to nullable string when the sample records are all null
+
 ### 0.2.9 (2024-07-16)
 - new: fix_type function: Option to drop unknown properties
 
