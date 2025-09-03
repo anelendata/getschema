@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from setuptools import setup
 
-VERSION = "0.2.10"
+VERSION = "0.2.11"
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -32,7 +32,7 @@ setup(
         "setuptools>=40.3.0",
         "jsonpath-ng>=1.5.2",
         "python-dateutil>=2.8.1",
-        "simplejson==3.11.1",
+        "simplejson==3.*,>=3.13.2",
         "pyyaml>=5.1",
     ],
     entry_points="""

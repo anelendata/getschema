@@ -1,5 +1,8 @@
 ## History
 
+### 0.2.11 (2025-09-02)
+- fix: fix simplejson dependency for singer use
+
 ### 0.2.10 (2025-04-08)
 - new: default to nullable string when the sample records are all null
 
