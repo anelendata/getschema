@@ -37,7 +37,7 @@ def _is_datetime(obj):
         type(obj) is datetime.datetime or
         type(obj) is datetime.date or
         (type(obj) is str and
-         re.match("(19|20)\d\d-(0[1-9]|1[012])-([1-9]|0[1-9]|[12][0-9]|3[01])",
+         re.match(r"(19|20)\d\d-(0[1-9]|1[012])-([1-9]|0[1-9]|[12][0-9]|3[01])",
                   obj) is not None)
     )
 
@@ -51,7 +51,13 @@ def _do_infer_schema(obj, record_level=None, lower=False,
         obj = _get_jsonpath(obj, record_level)[0]
 
     schema["type"] = DEFAULT_TYPE
-    if type(obj) is dict and obj.keys():
+    if obj is None:
+        # A null value says nothing about the type. ["null"] lets _compare_props
+        # defer to the other record; _replace_null_type turns a field that is null
+        # in every record into DEFAULT_TYPE at the end.
+        schema["type"] = ["null"]
+    elif type(obj) is dict:
+        # An empty dict is still an object (it used to fall through to string).
         schema["type"] = ["null", "object"]
         schema["properties"] = dict()
         for key in obj.keys():
@@ -64,14 +70,14 @@ def _do_infer_schema(obj, record_level=None, lower=False,
 
     elif type(obj) is list:
         schema["type"] = ["null", "array"]
-        if not obj:
-            schema["items"] = None
-        # TODO: Check more than the first record
-        else:
+        schema["items"] = None
+        # Merge every item, not only the first, so a property that only some
+        # items have still lands in the schema.
+        for item in obj:
             ret = _do_infer_schema(
-                obj[0], lower=lower, replace_special=replace_special,
+                item, lower=lower, replace_special=replace_special,
                 snake_case=snake_case)
-            schema["items"] = ret
+            schema["items"] = _compare_props(schema["items"], ret)
     else:
         try:
             float(obj)
@@ -94,7 +100,9 @@ def _do_infer_schema(obj, record_level=None, lower=False,
 
 def _compare_props(prop1, prop2):
     if not prop2 or prop2.get("type") == ["null"]:
-        return prop1
+        # prop1 may be missing (key only in the later record): keep the null-typed
+        # prop2 then, so the key survives and _replace_null_type can default it.
+        return prop1 or prop2
     elif not prop1 or prop1.get("type") == ["null"]:
         return prop2
     prop = prop2
@@ -102,15 +110,21 @@ def _compare_props(prop1, prop2):
     t2 = prop2["type"]
     f1 = prop1.get("format")
     f2 = prop2.get("format")
-    if t1[1] == "object":
+    if "object" in (t1[1], t2[1]):
+        # Checked both ways: object-then-scalar used to raise but scalar-then-object
+        # silently produced a string type that still carried properties.
         if t1[1] != t2[1]:
             raise ValueError(
                 "While traversing object %s, two records differ in types: %s %s" %
                 (prop, t1[1], t2[1]))
-        for key in prop["properties"]:
-            prop["properties"][key] = _compare_props(
-                prop1["properties"].get(key), prop2["properties"].get(key))
-    if t1[1] == "array":
+        # Union of the keys: a property seen only in the earlier records is kept.
+        props1 = prop1.get("properties", {})
+        props2 = prop2.get("properties", {})
+        prop["properties"] = {
+            key: _compare_props(props1.get(key), props2.get(key))
+            for key in list(props1) + [k for k in props2 if k not in props1]
+        }
+    if "array" in (t1[1], t2[1]):
         if t1[1] != t2[1]:
             raise ValueError(
                 "While traversing array %s, two records differ in types: %s %s" %
@@ -157,6 +171,12 @@ def _replace_null_type(schema, path=""):
         for key in schema.get("properties", {}).keys():
             new_path = path + "." + key
             new_schema["properties"][key] = _replace_null_type(schema["properties"][key], new_path)
+        if not new_schema["properties"] and path:
+            # Only ever seen as {}: no properties to define (an empty RECORD is not
+            # loadable), so fall back to the default like an all-null field.
+            LOGGER.warning(f"{path} is an object without properties. Replacing with the default {DEFAULT_TYPE}")
+            new_schema.pop("properties")
+            new_schema["type"] = DEFAULT_TYPE
     elif schema["type"] == ["null", "array"]:
         if not schema.get("items"):
             new_schema["items"] = {}
@@ -165,6 +185,8 @@ def _replace_null_type(schema, path=""):
                 f"{path} is an array without non-null values."
                 f"Replacing with the default {DEFAULT_TYPE}")
             new_schema["items"]["type"] = DEFAULT_TYPE
+        else:
+            new_schema["items"] = _replace_null_type(new_schema["items"], path + "[]")
     elif schema["type"] == ["null"]:
         LOGGER.warning(f"{path} contained non-null values only. Replacing with the default {DEFAULT_TYPE}")
         new_schema["type"] = DEFAULT_TYPE
