@@ -1,0 +1,111 @@
+name: release
+
+# Push a version tag (e.g. `git tag v0.2.12 && git push origin v0.2.12`) to build,
+# install-test, and publish to PyPI via Trusted Publishing (OIDC) — no API token.
+#
+# Flow: build -> smoke (install-test the built artifacts; gates publish) ->
+# publish -> verify (install the published package from PyPI).
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Tag matches pyproject.toml version
+        run: |
+          python - <<'EOF'
+          import os, tomllib
+          want = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          have = tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]
+          assert have == want, f"pyproject.toml version {have} != tag {want}"
+          print("version OK:", have)
+          EOF
+      - run: pip install build
+      - run: python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # Install the built wheel AND sdist in a clean venv and prove they work, before
+  # anything is published. Catches a version that doesn't match the tag, a broken
+  # command path, and a package that only works from the source tree.
+  smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        artifact: ["*.whl", "*.tar.gz"]
+    steps:
+      # The checkout is only for tests/; the package source is removed below so
+      # the tests import the INSTALLED artifact.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Install ${{ matrix.artifact }} in a clean venv
+        run: |
+          rm -rf getschema
+          python -m venv "$RUNNER_TEMP/venv"
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/venv/bin/pip" install --upgrade pip
+          "$RUNNER_TEMP/venv/bin/pip" install dist/${{ matrix.artifact }} pytest
+      - name: Installed version matches the tag
+        run: |
+          python -c "import os, importlib.metadata as m; want = os.environ['GITHUB_REF_NAME'].removeprefix('v'); have = m.version('getschema'); assert have == want, f'{have} != {want}'; print('version OK:', have)"
+      - name: CLI infers a schema from a file
+        run: |
+          set -euo pipefail
+          printf '[{"id": 1, "o": {"x": "a"}}, {"id": 2, "o": null}]' > "$RUNNER_TEMP/records.json"
+          getschema "$RUNNER_TEMP/records.json" > "$RUNNER_TEMP/schema.json"
+          python -c "import json, sys; s = json.load(open(sys.argv[1])); assert s['properties']['o']['type'] == ['null', 'object'], s; print('getschema CLI: OK')" "$RUNNER_TEMP/schema.json"
+      - name: Tests against the installed package
+        run: |
+          python -c "import getschema, sys; assert 'site-packages' in getschema.__file__, getschema.__file__"
+          pytest -q tests
+
+  publish:
+    needs: smoke
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write   # required for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # Confirm the real, published package installs from PyPI. The simple index lags
+  # the upload behind a CDN, so retry for a few minutes before failing.
+  verify:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install from PyPI (retry for index propagation)
+        run: |
+          set -euo pipefail
+          V="${GITHUB_REF_NAME#v}"
+          python -m venv "$RUNNER_TEMP/pv"
+          "$RUNNER_TEMP/pv/bin/pip" install --upgrade pip >/dev/null
+          for i in $(seq 1 15); do
+            if "$RUNNER_TEMP/pv/bin/pip" install --no-cache-dir "getschema==$V"; then ok=1; break; fi
+            echo "-- not on the index yet (attempt $i); waiting 20s…"; sleep 20
+          done
+          [ "${ok:-}" = 1 ] || { echo "getschema==$V never became installable from PyPI"; exit 1; }
+          "$RUNNER_TEMP/pv/bin/python" -c "import os, importlib.metadata as m; want = os.environ['GITHUB_REF_NAME'].removeprefix('v'); have = m.version('getschema'); assert have == want, f'{have} != {want}'; print('PyPI install OK:', have)"
