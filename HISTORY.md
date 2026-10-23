@@ -1,5 +1,20 @@
 ## History
 
+### 0.2.12 (2026-10-23)
+- fix: a null value was inferred as a nullable string, so a field that is an object in
+  one record and null in a later one raised "two records differ in types: object
+  string". Null now infers as `["null"]` and defers to the other records; a field that
+  is null everywhere still becomes the default nullable string.
+- fix: an empty object `{}` was inferred as a string. It is an object now; a field that
+  is only ever `{}` becomes the default nullable string.
+- fix: merging nested objects kept only the later record's properties. Properties are
+  now unioned, and array items are merged across every element (not only the first).
+- fix: an object-vs-scalar conflict raised only when the object came first; it raises
+  in either order now instead of producing a string type that still has properties.
+- fix: the `getschema` CLI failed with a NameError (`infer_from_file` not imported).
+- ci: GitHub Actions `tests` (Python 3.9-3.12) and tag-triggered `release` (build,
+  install smoke test, PyPI Trusted Publishing, post-publish verify).
+
 ### 0.2.11 (2025-09-02)
 - fix: fix simplejson dependency for singer use
 

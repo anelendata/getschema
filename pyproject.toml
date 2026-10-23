@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "getschema"
-version = "0.2.11"
+version = "0.2.12"
 description = "Get jsonschema from sample records"
 readme = "README.md"
 requires-python = ">=3.9"
