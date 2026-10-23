@@ -2,6 +2,8 @@
 import argparse
 import simplejson as json
 
+from .impl import infer_from_file
+
 # JSON schema follows:
 # https://json-schema.org/
 COMMAND = "getschema"
